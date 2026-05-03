@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { doc, onSnapshot, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import AIHomeworkCheckerCard from '../components/AIHomeworkCheckerCard';
 
-const WEBHOOK_URL = 'http://178.238.225.239:5678/webhook/check_hw';
+const WEBHOOK_URL = 'http://178.238.225.239/webhook/check_hw';
 
 export default function HomeworkCheck({ user }) {
   // Caches for fast UI loading

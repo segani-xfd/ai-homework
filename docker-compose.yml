@@ -14,11 +14,9 @@ services:
       - app-network
 
   frontend:
-    # Добавляем порт 3000 для прямого доступа по IP, так как домена пока нет
+    # Теперь доступ будет через Nginx Proxy Manager на порту 80
     build: .
     restart: always
-    ports:
-      - "3000:80"
     networks:
       - app-network
 
@@ -33,7 +31,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=production
       - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://178.238.225.239:5678
+      - WEBHOOK_URL=http://178.238.225.239
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
