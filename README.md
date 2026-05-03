@@ -20,5 +20,5 @@ If you are developing a production application, we recommend using TypeScript wi
 docker-compose up -d --build
 
 
-docker-compose exec n8n n8n import:workflow --input="/home/node/workflows/AI_DATABASE.json"
-docker-compose exec n8n n8n import:workflow --input="/home/node/workflows/AI_HW_CHECK.json"
+docker compose exec n8n n8n import:workflow --input="/home/node/workflows/AI_DATABASE.json"
+docker compose exec n8n n8n import:workflow --input="/home/node/workflows/AI_HW_CHECK.json"

@@ -1,27 +1,36 @@
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  # Обратный прокси для управления доменами и SSL
+  nginx-proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    restart: always
     ports:
-      - "80:80"
+      - '80:80'
+      - '81:81' # Админка прокси
+      - '443:443'
+    volumes:
+      - ./npm_data:/data
+      - ./npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - app-network
+
+  frontend:
+    # Убираем порты "80:80", чтобы они не конфликтовали с прокси
+    build: .
     restart: always
     networks:
       - app-network
 
   n8n:
     image: n8nio/n8n:latest
-    ports:
-      - "5678:5678"
+    # Убираем порты "5678:5678", прокси будет обращаться внутри сети
     environment:
-      - N8N_HOST=localhost
+      - N8N_HOST=n8n.вашдомен.com
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=https
       - NODE_ENV=production
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=https://n8n.вашдомен.com/
     volumes:
       - n8n_data:/home/node/.n8n
-      - ./n8n:/home/node/workflows
     restart: always
     networks:
       - app-network
