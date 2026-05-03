@@ -28,7 +28,8 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=https
       - NODE_ENV=production
-      - WEBHOOK_URL=https://n8n.вашдомен.com/
+      - N8N_SECURE_COOKIE=false
+      - WEBHOOK_URL=http://http://178.238.225.239
     volumes:
       - n8n_data:/home/node/.n8n
     restart: always
