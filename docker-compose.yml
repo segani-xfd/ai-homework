@@ -31,7 +31,7 @@ services:
       - N8N_PROTOCOL=https
       - NODE_ENV=production
       - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://http://178.238.225.239
+      - WEBHOOK_URL=http://178.238.225.239
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
