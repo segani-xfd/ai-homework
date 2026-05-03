@@ -14,9 +14,11 @@ services:
       - app-network
 
   frontend:
-    # Убираем порты "80:80", чтобы они не конфликтовали с прокси
+    # Добавляем порт 3000 для прямого доступа по IP, так как домена пока нет
     build: .
     restart: always
+    ports:
+      - "3000:80"
     networks:
       - app-network
 
@@ -26,12 +28,12 @@ services:
     ports:
       - "5678:5678"
     environment:
-      - N8N_HOST=n8n.вашдомен.com
+      - N8N_HOST=178.238.225.239
       - N8N_PORT=5678
-      - N8N_PROTOCOL=https
+      - N8N_PROTOCOL=http
       - NODE_ENV=production
       - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://178.238.225.239
+      - WEBHOOK_URL=http://178.238.225.239:5678
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
