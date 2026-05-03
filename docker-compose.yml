@@ -1,11 +1,11 @@
 services:
-  # Обратный прокси для управления доменами и SSL
+  # Прокси-сервер, который откроет сайт и n8n по домену
   nginx-proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
     restart: always
     ports:
       - '80:80'
-      - '81:81' # Админка прокси
+      - '81:81'
       - '443:443'
     volumes:
       - ./npm_data:/data
@@ -14,7 +14,6 @@ services:
       - app-network
 
   frontend:
-    # Теперь доступ будет через Nginx Proxy Manager на порту 80
     build: .
     restart: always
     networks:
@@ -22,18 +21,15 @@ services:
 
   n8n:
     image: n8nio/n8n:latest
-    restart: always
-    ports:
-      - "5678:5678"
     environment:
-      - N8N_HOST=178.238.225.239
+      - N8N_HOST=vmi3258336.contaboserver.net
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - NODE_ENV=production
-      - N8N_SECURE_COOKIE=false
-      - WEBHOOK_URL=http://178.238.225.239
+      - WEBHOOK_URL=http://vmi3258336.contaboserver.net/webhook/check_hw
     volumes:
       - n8n_data:/home/node/.n8n
+    restart: always
     networks:
       - app-network
 
