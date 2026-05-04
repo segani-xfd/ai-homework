@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, ListChecks, Users, LogOut, FolderOpen } from 'lucide-react';
+import { Home, ListChecks, Users, LogOut, FolderOpen, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase';
@@ -27,9 +27,9 @@ function App() {
 
   const navItems = [
     { id: 'home', label: 'Главная', icon: Home, requiresAuth: false },
-    { id: 'homeworkCheck', label: 'Проверка дз', icon: ListChecks, requiresAuth: true },
+    { id: 'homeworkCheck', label: 'Проверка ДЗ', icon: ListChecks, requiresAuth: true },
     { id: 'myHomeworks', label: 'Мои ДЗ', icon: FolderOpen, requiresAuth: true },
-    { id: 'personalization', label: 'Персонализация', icon: Users, requiresAuth: true },
+    { id: 'personalization', label: 'Профиль', icon: User, requiresAuth: true },
   ];
 
   const handleTabSwitch = (itemOrId) => {
@@ -58,8 +58,10 @@ function App() {
       <div className="app-layout">
         <header className="top-nav">
           <div className="brand" style={{ cursor: 'pointer' }} onClick={() => handleTabSwitch('home')}>
-            <img src="/logo.png" alt="TaskLens" style={{ height: '36px', width: '36px', borderRadius: '10px', objectFit: 'cover' }} />
-            <span style={{ fontWeight: 800, fontSize: '1.3rem', background: 'linear-gradient(135deg, var(--accent-cyan), var(--accent-violet))', WebkitBackgroundClip: 'text', color: 'transparent', letterSpacing: '-0.5px' }}>TaskLens</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <img src="/logo.png" alt="" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
+            </div>
+            <span style={{ fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>UyVazifa</span>
           </div>
           
           <nav className="nav-links">
@@ -170,6 +172,25 @@ function App() {
             <PersonalizationTab user={user} handleSignOut={handleSignOut} />
           </motion.div>
         </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="mobile-nav">
+          {navItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button 
+                key={item.id}
+                onClick={() => handleTabSwitch(item)}
+                className={`mobile-nav-item ${activeTab === item.id ? 'active' : ''}`}
+              >
+                <div className="mobile-nav-icon-wrapper">
+                  <Icon size={20} />
+                </div>
+                <span className="mobile-nav-label">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       <AuthModal 

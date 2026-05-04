@@ -16,23 +16,35 @@ const ScrollSequence = ({ frameCount = 200 }) => {
       const img = new Image();
       const frameIndex = String(i).padStart(5, '0');
       img.src = `/animation/frame_${frameIndex}.jpg`;
+      
       img.onload = () => {
         loadedCount++;
+        if (loadedCount === 1) {
+          // Immediately show the first frame when it's ready
+          requestAnimationFrame(() => drawFrame(0));
+        }
         if (loadedCount === frameCount) {
-          setImages(loadedImages);
+          setImages([...loadedImages]);
         }
       };
-      loadedImages.push(img);
+      img.onerror = () => {
+        console.error(`Failed to load frame ${i}`);
+        loadedCount++;
+      };
+      loadedImages[i] = img; // Keep order
     }
+    // Set them anyway so we can start drawing as they load
+    setImages(loadedImages);
   }, [frameCount]);
 
   const drawFrame = (index) => {
     const canvas = canvasRef.current;
-    if (!canvas || !images[index]) return;
+    if (!canvas || !images || !images[index]) return;
     const ctx = canvas.getContext('2d');
     
-    // Smooth responsive resizing (Cover style)
     const img = images[index];
+    if (!img.complete) return; // Don't draw if not ready
+
     const hRatio = canvas.width / img.width;
     const vRatio = canvas.height / img.height;
     const ratio = Math.max(hRatio, vRatio);
@@ -53,36 +65,49 @@ const ScrollSequence = ({ frameCount = 200 }) => {
       const rect = sceneContainerRef.current.getBoundingClientRect();
       const windowHeight = window.innerHeight;
       
-      // Calculate progress relative to the container's scroll zone
-      // progress = (currentScroll - containerTop) / (containerHeight - windowHeight)
-      // Since rect.top is currentScroll relative to container entry:
-      const progress = -rect.top / (rect.height - windowHeight);
-      
-      // Clamp 0 to 1
-      const clampedProgress = Math.min(1, Math.max(0, progress));
-      const frameIndex = Math.min(
-        frameCount - 1,
-        Math.max(0, Math.floor(clampedProgress * frameCount))
-      );
+      // Calculate progress relative to the container's presence on screen
+      // For sticky, we care about the scroll within the container's height
+      const totalScrollable = rect.height - windowHeight;
+      if (totalScrollable <= 0) return;
 
-      requestAnimationFrame(() => {
-        drawFrame(frameIndex);
-        
-        // Instructional text fade out early in the sequence
-        if (clampedProgress > 0.05) {
-          setInstructionOpacity(Math.max(0, 1 - (clampedProgress - 0.05) * 10));
-        } else {
-          setInstructionOpacity(1);
-        }
-      });
+      const progress = -rect.top / totalScrollable;
+      const clampedProgress = Math.min(1, Math.max(0, progress));
+      const frameIndex = Math.floor(clampedProgress * (frameCount - 1));
+
+      drawFrame(frameIndex);
+      
+      if (clampedProgress > 0.05) {
+        setInstructionOpacity(Math.max(0, 1 - (clampedProgress - 0.05) * 10));
+      } else {
+        setInstructionOpacity(1);
+      }
     };
 
-    // The scroll listener must be on the actual scroll container (main-content) or window
-    // In our app, .main-content is the scrollable area.
-    const scrollContainer = document.querySelector('.main-content') || window;
-    scrollContainer.addEventListener('scroll', handleScroll);
-    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    // More aggressive scroll listening for mobile
+    const scrollContainers = [window, document.querySelector('.main-content'), document.body, document.documentElement];
+    
+    const onScroll = (e) => {
+      handleScroll();
+    };
+
+    scrollContainers.forEach(container => {
+      if (container) container.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    });
+
+    // Pulse check to ensure visibility
+    const interval = setInterval(handleScroll, 100);
+    handleScroll();
+
+    return () => {
+      scrollContainers.forEach(container => {
+        if (container) container.removeEventListener('scroll', onScroll, { capture: true });
+      });
+      clearInterval(interval);
+    };
   }, [images, frameCount]);
+
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const isMobile = windowWidth < 768;
 
   // Handle canvas resize and scale
   useEffect(() => {
@@ -91,15 +116,37 @@ const ScrollSequence = ({ frameCount = 200 }) => {
       if (!canvas) return;
       
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
+      if (rect.width === 0 || rect.height === 0) return;
+
+      setWindowWidth(window.innerWidth);
+      canvas.width = rect.width * (window.devicePixelRatio || 1);
+      canvas.height = rect.height * (window.devicePixelRatio || 1);
       
+      // Force draw current state
       drawFrame(0);
     };
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
-    return () => window.removeEventListener('resize', resizeCanvas);
+    
+    // Multiple retries for mobile environment
+    const t1 = setTimeout(resizeCanvas, 100);
+    const t2 = setTimeout(resizeCanvas, 500);
+    const t3 = setTimeout(resizeCanvas, 1500);
+    
+    return () => {
+      window.removeEventListener('resize', resizeCanvas);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+    };
+  }, [images]);
+
+  // Periodic fallback draw for mobile stability
+  useEffect(() => {
+    if (!images || images.length === 0) return;
+    const interval = setInterval(() => {
+      drawFrame(0);
+    }, 2000);
+    return () => clearInterval(interval);
   }, [images]);
 
   return (
@@ -107,9 +154,10 @@ const ScrollSequence = ({ frameCount = 200 }) => {
       ref={sceneContainerRef} 
       className="scene-container"
       style={{ 
-        height: '400vh', // This is the scroll distance
+        height: isMobile ? '400vh' : '450vh', // Slowed down significantly on mobile
         position: 'relative',
-        width: '100%'
+        width: '100%',
+        marginTop: '0'
       }}
     >
       <div 
@@ -125,15 +173,16 @@ const ScrollSequence = ({ frameCount = 200 }) => {
           alignItems: 'center',
           justifyContent: 'center',
           overflow: 'hidden',
-          zIndex: 10
+          zIndex: 10,
+          background: '#0a0f1d' // Deep background to prevent flash
         }}
       >
         <div 
           className="glass-card" 
           style={{ 
-            width: '90%', 
+            width: '95%', 
             maxWidth: '1100px',
-            height: '70vh', 
+            height: isMobile ? '45vh' : '70vh', 
             padding: '4px', 
             borderRadius: '32px', 
             overflow: 'hidden',
@@ -152,16 +201,13 @@ const ScrollSequence = ({ frameCount = 200 }) => {
               borderRadius: '28px' 
             }}
           />
-          
-          {/* Pulsing glow background effect */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%', background: 'radial-gradient(circle, var(--accent-cyan), transparent 70%)', opacity: 0.1, zIndex: -1 }}></div>
         </div>
 
         <div 
           style={{ 
-            marginTop: '40px', 
+            marginTop: '30px', 
             color: 'var(--text-muted)', 
-            fontSize: '1.3rem', 
+            fontSize: isMobile ? '1rem' : '1.3rem', 
             fontWeight: 400,
             opacity: instructionOpacity,
             transition: 'opacity 0.3s ease',
