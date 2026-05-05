@@ -140,7 +140,9 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
             {grade}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontWeight: 600 }}>
-            <img src="/logo.png" alt="" style={{ width: '14px', height: '14px', objectFit: 'contain' }} />
+            <div className="logo-glow-container" style={{ width: '18px', height: '18px', borderRadius: '4px' }}>
+              <img src="/logo.png" alt="" />
+            </div>
             <span>{subject}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontWeight: 600 }}>

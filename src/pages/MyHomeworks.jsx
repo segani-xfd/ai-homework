@@ -91,8 +91,22 @@ export default function MyHomeworks({ user }) {
   
   const handleDelete = async (hwId) => {
     if (!window.confirm("Вы уверены, что хотите удалить эту запись?")) return;
+    const hwToDelete = homeworks.find(h => h.id === hwId);
     try {
       await deleteDoc(doc(db, 'homeworks', hwId));
+      
+      // Also update the chat counter if possible
+      if (hwToDelete?.chatId) {
+        try {
+          const { updateDoc, increment } = await import('firebase/firestore');
+          await updateDoc(doc(db, 'chats', hwToDelete.chatId), {
+            messageCount: increment(-1),
+            lastUpdated: new Date() // Trigger a refresh of the chat list
+          });
+        } catch (counterErr) {
+          console.warn("Не удалось обновить счетчик чата:", counterErr);
+        }
+      }
     } catch (err) {
       console.error("Ошибка удаления:", err);
       alert("Не удалось удалить запись.");

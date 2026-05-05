@@ -58,10 +58,10 @@ function App() {
       <div className="app-layout">
         <header className="top-nav">
           <div className="brand" style={{ cursor: 'pointer' }} onClick={() => handleTabSwitch('home')}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <img src="/logo.png" alt="" style={{ width: '30px', height: '30px', objectFit: 'contain' }} />
+            <div className="logo-glow-container">
+              <img src="/logo.png" alt="UyVazifa Logo" />
             </div>
-            <span style={{ fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>UyVazifa</span>
+            <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>UyVazifa</span>
           </div>
           
           <nav className="nav-links">

@@ -92,8 +92,7 @@ export default function HomeworkCheck({ user }) {
 
     const q = query(
       collection(db, 'homeworks'),
-      where('chatId', '==', currentChatId),
-      orderBy('timestamp', 'asc')
+      where('chatId', '==', currentChatId)
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -102,7 +101,12 @@ export default function HomeworkCheck({ user }) {
         ...doc.data(),
         time: doc.data().timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || ''
       }));
+      // Sort in memory to avoid missing index errors
+      messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
       setAiFeed(messages);
+    }, (err) => {
+      console.error("Ошибка загрузки сообщений:", err);
+      setStatusMsg('⚠️ Ошибка загрузки сообщений');
     });
 
     return () => unsubscribe();
@@ -215,7 +219,7 @@ export default function HomeworkCheck({ user }) {
     if (!isFormValid) return;
 
     setIsSubmitting(true);
-    setStatusMsg('ИИ анализирует фото...');
+    setStatusMsg('ИИ анализирует...');
 
     const payload = new FormData();
     payload.append('class', formData.classGroup);
@@ -249,6 +253,14 @@ export default function HomeworkCheck({ user }) {
       if (!finalAiText) finalAiText = "Проверка завершена.";
 
       let chatId = currentChatId;
+      
+      // Safety check: If form Class/Subject changed, don't save to old chat
+      if (chatId) {
+        const activeChat = chats.find(c => c.id === chatId);
+        if (activeChat && (activeChat.classGroup !== formData.classGroup || activeChat.subject !== formData.subject)) {
+          chatId = null; // Forces creation of a new relevant chat
+        }
+      }
       
       // Create new chat if not exists
       if (!chatId) {
@@ -293,11 +305,12 @@ export default function HomeworkCheck({ user }) {
         setStatusMsg('⚠️ Ответ получен, но не удалось сохранить в базу');
       }
 
-      setIsSubmitting(false); // <--- FIX: Stop loading state on success
+      // Done
 
     } catch (e) {
       console.error("Ошибка вебхука:", e);
       setStatusMsg('❌ Ошибка связи с ИИ');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -325,8 +338,8 @@ export default function HomeworkCheck({ user }) {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ClipboardList size={20} color="white" />
+                  <div className="logo-glow-container small">
+                    <img src="/logo.png" alt="Logo" />
                   </div>
                   <span style={{ fontWeight: 700, fontSize: '1.2rem', color: 'white' }}>UyVazifa</span>
                 </div>
@@ -447,8 +460,8 @@ export default function HomeworkCheck({ user }) {
               {/* AI Response */}
               <div style={{ alignSelf: 'flex-start', maxWidth: '95%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <ClipboardList size={14} color="#FFF" />
+                  <div className="logo-glow-container small" style={{ width: '24px', height: '24px', borderRadius: '6px' }}>
+                    <img src="/logo.png" alt="Logo" />
                   </div>
                   <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>UyVazifa</span>
                 </div>
@@ -461,10 +474,10 @@ export default function HomeworkCheck({ user }) {
         {isSubmitting && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ alignSelf: 'flex-start', maxWidth: '95%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ClipboardList size={14} color="#FFF" />
+              <div className="logo-glow-container small" style={{ width: '24px', height: '24px', borderRadius: '6px' }}>
+                <img src="/logo.png" alt="Logo" />
               </div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>UyVazifa думает...</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>UyVazifa думает...</span>
             </div>
             
             <div style={{ 

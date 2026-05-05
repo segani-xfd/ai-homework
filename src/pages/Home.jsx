@@ -221,9 +221,11 @@ export default function Home({ navigateTo }) {
           margin: '0 auto'
         }}
       >
-        <motion.div variants={revealVariants} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '8px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '24px' }}>
-          <img src="/logo.png" alt="Logo" style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '1px' }}>ПРОВЕРКА ДЗ С ПОМОЩЬЮ ИИ</span>
+        <motion.div variants={revealVariants} style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '10px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '24px' }}>
+          <div className="logo-glow-container small">
+            <img src="/logo.png" alt="Logo" />
+          </div>
+          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '1px' }}>ПРОВЕРКА ДЗ С ПОМОЩЬЮ ИИ</span>
         </motion.div>
 
         <motion.h1

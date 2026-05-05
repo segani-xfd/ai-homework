@@ -3,16 +3,14 @@
   --bg-darker: #0B0F19;
   --text-main: #F8FAFC;
   --text-muted: #94A3B8;
-  --accent-cyan: #818CF8;
+  --accent-cyan: #00F2FE;
   --accent-violet: #6366F1;
-  --glass-bg: #1E2435;
-  --glass-border: rgba(255, 255, 255, 0.05);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  --font-family: 'Inter', system-ui, sans-serif;
-  --transition-smooth: all 0.3s cubic-bezier(0.2, 1, 0.3, 1);
-  --content-max-width: 1440px;
-  --content-padding-x: 32px;
-  --card-radius: 20px;
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  --font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  --transition-smooth: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  --card-radius: 24px;
 }
 
 * {
@@ -47,6 +45,40 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes logo-glow {
+  0% { box-shadow: 0 0 15px rgba(0, 242, 254, 0.3); border-color: rgba(0, 242, 254, 0.3); }
+  50% { box-shadow: 0 0 25px rgba(0, 242, 254, 0.6); border-color: rgba(0, 242, 254, 0.6); }
+  100% { box-shadow: 0 0 15px rgba(0, 242, 254, 0.3); border-color: rgba(0, 242, 254, 0.3); }
+}
+
+.logo-glow-container {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: var(--transition-smooth);
+  animation: logo-glow 3s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.logo-glow-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.1); /* Slight zoom to help with the crop */
+}
+
+.logo-glow-container.small {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
 }
 
 .app-layout {
