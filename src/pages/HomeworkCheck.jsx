@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { doc, onSnapshot, collection, addDoc, serverTimestamp, query, where, getDocs, orderBy, updateDoc, increment } from 'firebase/firestore';
 import AIHomeworkCheckerCard from '../components/AIHomeworkCheckerCard';
 
-const WEBHOOK_URL = 'https://vmi3258336.contaboserver.net/webhook/check_hw';
+const WEBHOOK_URL = import.meta.env.VITE_WEBHOOK_URL;
 
 export default function HomeworkCheck({ user }) {
   // Caches for fast UI loading
