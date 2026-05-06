@@ -24,7 +24,7 @@ body {
   background-color: var(--bg-deep-blue);
   color: var(--text-main);
   min-height: 100vh;
-  min-height: -webkit-fill-available;
+  min-height: 100dvh;
   overflow-x: hidden;
 }
 
@@ -85,6 +85,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* ===== Top Navigation ===== */
@@ -155,12 +156,16 @@ body {
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-  height: calc(100vh - 70px) !important;
+  height: calc(100dvh - 70px) !important;
 }
 
 @media (max-width: 768px) {
+  .top-nav.mobile-hidden {
+    display: none;
+  }
+  
   .no-scroll {
-    height: calc(100vh - 70px - 70px) !important;
+    height: calc(100dvh - 70px) !important; /* Only minus mobile-nav height if top-nav is hidden */
   }
 }
 

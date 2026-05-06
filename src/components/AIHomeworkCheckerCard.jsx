@@ -109,6 +109,11 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
         .hw-card-scroll::-webkit-scrollbar-track { background: transparent; }
         .hw-card-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
         .hw-card-scroll-v { overflow-y: auto; max-height: 200px; }
+        @media (max-width: 600px) {
+          .hw-card-columns { flex-direction: column !important; }
+          .hw-card-column { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06); }
+          .hw-card-column:last-child { border-bottom: none; }
+        }
       `}</style>
 
       <motion.div
@@ -150,26 +155,26 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
           </div>
         </div>
 
-        {/* Body - Two Columns (Scrollable) */}
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* Body - Two Columns (Scrollable, stacked on mobile) */}
+        <div className="hw-card-columns" style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           {/* Left Column */}
-          <div style={{ flex: 1, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column' }}>
-            <div onClick={() => setActiveModal('student')} style={{ padding: '10px 16px', background: 'rgba(248, 113, 113, 0.04)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
+          <div className="hw-card-column" style={{ flex: 1, borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column' }}>
+            <div onClick={() => setActiveModal('student')} style={{ padding: '8px 16px', background: 'rgba(248, 113, 113, 0.04)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
               <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', color: '#f87171' }}>Решение</span>
               <Eye size={12} color="#f87171" opacity={0.6} />
             </div>
-            <div className="hw-card-scroll hw-card-scroll-v" style={{ padding: '12px 16px', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 700, color: '#f1f5f9' }}>
+            <div className="hw-card-scroll hw-card-scroll-v" style={{ padding: '12px 16px', fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 700, color: '#f1f5f9' }}>
               {renderHighlighted(student_output, errorRegex, '#f87171')}
             </div>
           </div>
 
           {/* Right Column */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div onClick={() => setActiveModal('correct')} style={{ padding: '10px 16px', background: 'rgba(34, 197, 94, 0.04)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
+          <div className="hw-card-column" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div onClick={() => setActiveModal('correct')} style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.04)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer' }}>
               <span style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', color: '#22c55e' }}>Эталон</span>
               <Eye size={12} color="#22c55e" opacity={0.6} />
             </div>
-            <div className="hw-card-scroll hw-card-scroll-v" style={{ padding: '12px 16px', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 700, color: '#f1f5f9' }}>
+            <div className="hw-card-scroll hw-card-scroll-v" style={{ padding: '12px 16px', fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontWeight: 700, color: '#f1f5f9' }}>
               {renderHighlighted(right_output, correctRegex, '#22c55e')}
             </div>
           </div>

@@ -85,10 +85,14 @@ export default function HomeworkCheck({ user }) {
 
   // Load Messages for Current Chat
   useEffect(() => {
-    if (!user || !currentChatId) {
+    // Only clear feed if we are NOT in the middle of a submission
+    // This prevents the "deletion flash" when currentChatId transitions from null to a new ID
+    if (!user || (!currentChatId && !isSubmitting)) {
       setAiFeed([]);
       return;
     }
+
+    if (!currentChatId) return; // Wait for ID if submitting
 
     const q = query(
       collection(db, 'homeworks'),
@@ -306,28 +310,33 @@ export default function HomeworkCheck({ user }) {
         });
         setStatusMsg('✅ Проверено');
         clearPhotoOnly();
+        setIsSubmitting(false); // Remove delay, hide immediately after DB save
       } catch (dbError) {
         console.error("Ошибка сохранения в базу:", dbError);
         setStatusMsg('⚠️ Ответ получен, но не удалось сохранить в базу');
+        setIsSubmitting(false);
       }
-
-      // Done
 
     } catch (e) {
       console.error("Ошибка вебхука:", e);
       setStatusMsg('❌ Ошибка связи с ИИ');
-      setIsSubmitting(false); // Only stop submitting on error here
-    } finally {
-      // We don't call setIsSubmitting(false) here immediately because
-      // we want to wait for the Firestore message to actually appear in the feed
-      // to prevent the "empty chat" flash. 
-      // The onSnapshot will update the feed, and we can keep the loader for a beat.
-      setTimeout(() => setIsSubmitting(false), 800);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: '800px', margin: '0 auto', width: '100%', position: 'relative', paddingBottom: '70px', overflow: 'hidden' }}>
+    <div style={{ 
+      height: '100dvh', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      maxWidth: '800px', 
+      margin: '0 auto', 
+      width: '100%', 
+      position: 'relative', 
+      paddingBottom: window.innerWidth < 768 ? '10px' : '20px', 
+      overflow: 'hidden',
+      background: 'var(--bg-deep-blue)'
+    }}>
       
       {/* Sidebar Drawer */}
       <AnimatePresence>
@@ -421,27 +430,36 @@ export default function HomeworkCheck({ user }) {
       </AnimatePresence>
 
       {/* Header */}
-      <div style={{ padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid var(--glass-border)', background: 'var(--bg-deep-blue)', zIndex: 10 }}>
+      <div className="chat-header" style={{ 
+        padding: window.innerWidth < 768 ? '12px 16px' : '16px 32px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '12px', 
+        borderBottom: '1px solid var(--glass-border)', 
+        background: 'rgba(19, 24, 38, 0.8)',
+        backdropFilter: 'blur(10px)',
+        zIndex: 10 
+      }}>
         <button 
           onClick={() => setIsSidebarOpen(true)}
           style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center' }}
         >
-          <Menu size={24} />
+          <Menu size={22} />
         </button>
-        <h1 style={{ fontSize: '1.2rem', fontWeight: 600, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+        <h1 style={{ fontSize: window.innerWidth < 768 ? '1rem' : '1.2rem', fontWeight: 600, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <ClipboardList size={18} color="var(--accent-cyan)" />
           {currentChatId ? (chats.find(c => c.id === currentChatId)?.classGroup || 'Чат') : 'Новая проверка'}
         </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0, 242, 254, 0.1)', padding: '6px 12px', borderRadius: '100px', border: '1px solid rgba(0, 242, 254, 0.2)' }}>
-          <Star size={14} color="var(--accent-cyan)" fill="var(--accent-cyan)" />
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-            Сегодня: {totalToday}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 242, 254, 0.1)', padding: '4px 10px', borderRadius: '100px', border: '1px solid rgba(0, 242, 254, 0.2)', flexShrink: 0 }}>
+          <Star size={12} color="var(--accent-cyan)" fill="var(--accent-cyan)" />
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-cyan)' }}>
+            {totalToday}
           </span>
         </div>
       </div>
 
       {/* Chat Feed */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: window.innerWidth < 768 ? '12px' : '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {aiFeed.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(0, 242, 254, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
@@ -495,14 +513,14 @@ export default function HomeworkCheck({ user }) {
               background: 'rgba(15, 23, 42, 0.6)', 
               backdropFilter: 'blur(12px)', 
               WebkitBackdropFilter: 'blur(12px)',
-              borderRadius: '24px', 
+              borderRadius: '20px', 
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              padding: '30px',
+              padding: '16px 20px',
               width: '100%',
-              maxWidth: '400px',
+              maxWidth: '300px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px',
+              gap: '10px',
               transform: 'translateZ(0)',
               backfaceVisibility: 'hidden'
             }}>
@@ -538,7 +556,7 @@ export default function HomeworkCheck({ user }) {
       </div>
 
       {/* Bottom Gemini-like Input Bar */}
-      <div style={{ padding: '0 16px 20px 16px', background: 'linear-gradient(transparent, var(--bg-deep-blue) 20%)' }}>
+      <div style={{ padding: window.innerWidth < 768 ? '0 8px 10px 8px' : '0 16px 20px 16px', background: 'linear-gradient(transparent, var(--bg-deep-blue) 40%)' }}>
         
         {attemptedSubmit && !isFormValid && imageFiles.length === 0 && (
           <div style={{ textAlign: 'center', color: '#EF4444', fontSize: '0.8rem', marginBottom: '8px' }}>Пожалуйста, прикрепите фото</div>

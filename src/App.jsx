@@ -56,7 +56,8 @@ function App() {
       </div>
       
       <div className="app-layout">
-        <header className="top-nav">
+        {/* Hide global top-nav in chat mode on mobile to save space */}
+        <header className={`top-nav ${(activeTab === 'homeworkCheck' || activeTab === 'myHomeworks') ? 'mobile-hidden' : ''}`}>
           <div className="brand" style={{ cursor: 'pointer' }} onClick={() => handleTabSwitch('home')}>
             <div className="logo-glow-container">
               <img src="/logo.png" alt="UyVazifa Logo" />
