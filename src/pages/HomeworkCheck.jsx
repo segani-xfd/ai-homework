@@ -99,11 +99,15 @@ export default function HomeworkCheck({ user }) {
       const messages = snap.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        time: doc.data().timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || ''
+        time: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
       }));
       // Sort in memory to avoid missing index errors
       messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
-      setAiFeed(messages);
+      
+      // Update feed only if we have messages or if we are not currently loading
+      if (messages.length > 0 || !snap.metadata.fromCache) {
+        setAiFeed(messages);
+      }
     }, (err) => {
       console.error("Ошибка загрузки сообщений:", err);
       setStatusMsg('⚠️ Ошибка загрузки сообщений');
@@ -282,6 +286,8 @@ export default function HomeworkCheck({ user }) {
           messageCount: increment(1),
           lastGrade: getGrade(finalAiText)
         });
+        // Important: DON'T call setCurrentChatId(chatId) if it's already the same,
+        // it causes useEffect to restart and can cause a flash/clear of the feed.
       }
 
       try {
@@ -310,8 +316,13 @@ export default function HomeworkCheck({ user }) {
     } catch (e) {
       console.error("Ошибка вебхука:", e);
       setStatusMsg('❌ Ошибка связи с ИИ');
+      setIsSubmitting(false); // Only stop submitting on error here
     } finally {
-      setIsSubmitting(false);
+      // We don't call setIsSubmitting(false) here immediately because
+      // we want to wait for the Firestore message to actually appear in the feed
+      // to prevent the "empty chat" flash. 
+      // The onSnapshot will update the feed, and we can keep the loader for a beat.
+      setTimeout(() => setIsSubmitting(false), 800);
     }
   };
 
@@ -410,7 +421,7 @@ export default function HomeworkCheck({ user }) {
       </AnimatePresence>
 
       {/* Header */}
-      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid var(--glass-border)', background: 'var(--bg-deep-blue)', zIndex: 10 }}>
+      <div style={{ padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid var(--glass-border)', background: 'var(--bg-deep-blue)', zIndex: 10 }}>
         <button 
           onClick={() => setIsSidebarOpen(true)}
           style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center' }}

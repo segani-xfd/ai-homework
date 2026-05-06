@@ -180,7 +180,15 @@ export default function MyHomeworks({ user }) {
             {Object.entries(groupedData).map(([date, classes]) => (
               <div key={date} style={{ background: 'var(--glass-bg)', borderRadius: '24px', padding: '20px', border: '1px solid var(--glass-border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>{date}</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                    {(() => {
+                      const today = new Date().toLocaleDateString('ru-RU');
+                      const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('ru-RU');
+                      if (date === today) return 'Сегодня';
+                      if (date === yesterday) return 'Вчера';
+                      return date;
+                    })()}
+                  </h3>
                   <Calendar size={20} color="var(--text-muted)" />
                 </div>
 
