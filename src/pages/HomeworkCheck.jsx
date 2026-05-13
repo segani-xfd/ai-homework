@@ -75,7 +75,7 @@ export default function HomeworkCheck({ user }) {
     const unsubscribe = onSnapshot(q, (snap) => {
       const chatList = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       // Sort in memory to avoid needing a composite index in Firestore
-      chatList.sort((a, b) => (b.lastUpdated?.seconds || 0) - (a.lastUpdated?.seconds || 0));
+      chatList.sort((a, b) => (b.lastUpdated?.seconds || Infinity) - (a.lastUpdated?.seconds || Infinity));
       setChats(chatList);
       setIsLoadingChats(false);
     });
@@ -85,14 +85,15 @@ export default function HomeworkCheck({ user }) {
 
   // Load Messages for Current Chat
   useEffect(() => {
-    // Only clear feed if we are NOT in the middle of a submission
-    // This prevents the "deletion flash" when currentChatId transitions from null to a new ID
+    // 1. If no user, or neither chat nor submission is active, clear feed.
+    // We include isSubmitting to ensure we don't clear the feed while a response is being processed.
     if (!user || (!currentChatId && !isSubmitting)) {
       setAiFeed([]);
       return;
     }
 
-    if (!currentChatId) return; // Wait for ID if submitting
+    // 2. If we don't have a chatId yet (new chat being created), just wait.
+    if (!currentChatId) return;
 
     const q = query(
       collection(db, 'homeworks'),
@@ -105,11 +106,13 @@ export default function HomeworkCheck({ user }) {
         ...doc.data(),
         time: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
       }));
-      // Sort in memory to avoid missing index errors
-      messages.sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
       
-      // Update feed only if we have messages or if we are not currently loading
-      if (messages.length > 0 || !snap.metadata.fromCache) {
+      // Sort messages: local (no timestamp) go to bottom
+      messages.sort((a, b) => (a.timestamp?.seconds || Infinity) - (b.timestamp?.seconds || Infinity));
+      
+      // CRITICAL FIX: Only update feed if we have messages OR if we are not in the middle of a submission.
+      // This prevents "flicker/deletion" when the snapshot is empty but a doc was just added.
+      if (messages.length > 0 || !isSubmitting) {
         setAiFeed(messages);
       }
     }, (err) => {
@@ -118,7 +121,7 @@ export default function HomeworkCheck({ user }) {
     });
 
     return () => unsubscribe();
-  }, [user, currentChatId]);
+  }, [user, currentChatId, isSubmitting]);
 
   // Extract grade helper
   const getGrade = (text) => {
@@ -294,6 +297,22 @@ export default function HomeworkCheck({ user }) {
         // it causes useEffect to restart and can cause a flash/clear of the feed.
       }
 
+      // Add optimistic message to the feed immediately
+      const optimisticMsg = {
+        id: 'temp-' + Date.now(),
+        chatId: chatId,
+        userId: user.uid,
+        classGroup: formData.classGroup,
+        subject: formData.subject,
+        student: formData.student,
+        taskNum: formData.taskNum,
+        aiResponse: finalAiText,
+        preview: imagePreviews[0],
+        timestamp: null // Local sort will put it at bottom
+      };
+      
+      setAiFeed(prev => [...prev, optimisticMsg]);
+
       try {
         const currentDateStr = new Date().toLocaleDateString('ru-RU');
         await addDoc(collection(db, 'homeworks'), {
@@ -308,9 +327,16 @@ export default function HomeworkCheck({ user }) {
           timestamp: serverTimestamp(),
           preview: imagePreviews[0]
         });
+        
         setStatusMsg('✅ Проверено');
         clearPhotoOnly();
-        setIsSubmitting(false); // Remove delay, hide immediately after DB save
+        
+        // Short delay to ensure Firestore listener picks up the new message
+        // and we don't have a "flash" of the Loading state.
+        setTimeout(() => {
+          setIsSubmitting(false);
+        }, 500);
+
       } catch (dbError) {
         console.error("Ошибка сохранения в базу:", dbError);
         setStatusMsg('⚠️ Ответ получен, но не удалось сохранить в базу');
@@ -460,7 +486,7 @@ export default function HomeworkCheck({ user }) {
 
       {/* Chat Feed */}
       <div style={{ flex: 1, overflowY: 'auto', padding: window.innerWidth < 768 ? '12px' : '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {aiFeed.length === 0 ? (
+        {aiFeed.length === 0 && !isSubmitting && !currentChatId ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(0, 242, 254, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
               <ClipboardList size={32} color="var(--accent-cyan)" />
@@ -500,13 +526,15 @@ export default function HomeworkCheck({ user }) {
           ))
         )}
 
-        {isSubmitting && (
+        {(isSubmitting || (currentChatId && aiFeed.length === 0)) && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ alignSelf: 'flex-start', maxWidth: '95%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <div className="logo-glow-container small" style={{ width: '24px', height: '24px', borderRadius: '6px' }}>
                 <img src="/logo.png" alt="Logo" />
               </div>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>UyVazifa думает...</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                {isSubmitting ? 'UyVazifa думает...' : 'Загрузка...'}
+              </span>
             </div>
             
             <div style={{ 
