@@ -86,7 +86,6 @@ export default function HomeworkCheck({ user }) {
   // Load Messages for Current Chat
   useEffect(() => {
     // 1. If no user, or neither chat nor submission is active, clear feed.
-    // We include isSubmitting to ensure we don't clear the feed while a response is being processed.
     if (!user || (!currentChatId && !isSubmitting)) {
       setAiFeed([]);
       return;
@@ -110,9 +109,9 @@ export default function HomeworkCheck({ user }) {
       // Sort messages: local (no timestamp) go to bottom
       messages.sort((a, b) => (a.timestamp?.seconds || Infinity) - (b.timestamp?.seconds || Infinity));
       
-      // CRITICAL FIX: Only update feed if we have messages OR if we are not in the middle of a submission.
-      // This prevents "flicker/deletion" when the snapshot is empty but a doc was just added.
-      if (messages.length > 0 || !isSubmitting) {
+      // Firestore automatically provides optimistic updates via cache.
+      // We ignore empty cache hits on initial load to avoid flashes.
+      if (messages.length > 0 || !snap.metadata.fromCache) {
         setAiFeed(messages);
       }
     }, (err) => {
@@ -121,7 +120,7 @@ export default function HomeworkCheck({ user }) {
     });
 
     return () => unsubscribe();
-  }, [user, currentChatId, isSubmitting]);
+  }, [user, currentChatId]); // removed isSubmitting to prevent listener restarts
 
   // Extract grade helper
   const getGrade = (text) => {
@@ -205,17 +204,34 @@ export default function HomeworkCheck({ user }) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        
         const size = Math.min(img.width, img.height);
-        canvas.width = size;
-        canvas.height = size;
+        // Scale down for the webhook (to save bandwidth and speed up AI)
+        const MAX_UPLOAD_SIZE = 1200;
+        const scale = size > MAX_UPLOAD_SIZE ? MAX_UPLOAD_SIZE / size : 1;
+        const targetSize = size * scale;
+
+        canvas.width = targetSize;
+        canvas.height = targetSize;
         const offsetX = (img.width - size) / 2;
         const offsetY = (img.height - size) / 2;
-        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
+        
+        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, targetSize, targetSize);
+        
         canvas.toBlob((blob) => {
           const processedFile = new File([blob], file.name, { type: 'image/jpeg' });
           setImageFiles([processedFile]);
-          setImagePreviews([canvas.toDataURL('image/jpeg')]);
-        }, 'image/jpeg', 0.9);
+          
+          // Generate a much smaller preview for Firestore to avoid "Document too large" errors
+          const previewCanvas = document.createElement('canvas');
+          const previewCtx = previewCanvas.getContext('2d');
+          const PREVIEW_SIZE = 400; 
+          previewCanvas.width = PREVIEW_SIZE;
+          previewCanvas.height = PREVIEW_SIZE;
+          previewCtx.drawImage(canvas, 0, 0, targetSize, targetSize, 0, 0, PREVIEW_SIZE, PREVIEW_SIZE);
+          
+          setImagePreviews([previewCanvas.toDataURL('image/jpeg', 0.6)]);
+        }, 'image/jpeg', 0.85);
       };
       img.src = event.target.result;
     };
@@ -297,21 +313,6 @@ export default function HomeworkCheck({ user }) {
         // it causes useEffect to restart and can cause a flash/clear of the feed.
       }
 
-      // Add optimistic message to the feed immediately
-      const optimisticMsg = {
-        id: 'temp-' + Date.now(),
-        chatId: chatId,
-        userId: user.uid,
-        classGroup: formData.classGroup,
-        subject: formData.subject,
-        student: formData.student,
-        taskNum: formData.taskNum,
-        aiResponse: finalAiText,
-        preview: imagePreviews[0],
-        timestamp: null // Local sort will put it at bottom
-      };
-      
-      setAiFeed(prev => [...prev, optimisticMsg]);
 
       try {
         const currentDateStr = new Date().toLocaleDateString('ru-RU');
