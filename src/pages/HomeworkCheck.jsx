@@ -475,6 +475,7 @@ export default function HomeworkCheck({ user }) {
         <h1 style={{ fontSize: window.innerWidth < 768 ? '1rem' : '1.2rem', fontWeight: 600, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <ClipboardList size={18} color="var(--accent-cyan)" />
           {currentChatId ? (chats.find(c => c.id === currentChatId)?.classGroup || 'Чат') : 'Новая проверка'}
+          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--accent-cyan)', background: 'rgba(0, 242, 254, 0.1)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', border: '1px solid rgba(0, 242, 254, 0.2)', verticalAlign: 'middle' }}>v0.1</span>
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 242, 254, 0.1)', padding: '4px 10px', borderRadius: '100px', border: '1px solid rgba(0, 242, 254, 0.2)', flexShrink: 0 }}>
           <Star size={12} color="var(--accent-cyan)" fill="var(--accent-cyan)" />
