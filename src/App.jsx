@@ -63,7 +63,6 @@ function App() {
               <img src="/logo.png" alt="UyVazifa Logo" />
             </div>
             <span style={{ fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-main)', letterSpacing: '-0.5px' }}>UyVazifa</span>
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent-cyan)', background: 'rgba(0, 242, 254, 0.1)', padding: '2px 6px', borderRadius: '6px', marginLeft: '8px', border: '1px solid rgba(0, 242, 254, 0.2)', verticalAlign: 'middle', textTransform: 'uppercase' }}>v0.1</span>
           </div>
           
           <nav className="nav-links">

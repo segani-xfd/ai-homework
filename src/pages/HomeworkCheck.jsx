@@ -85,14 +85,14 @@ export default function HomeworkCheck({ user }) {
 
   // Load Messages for Current Chat
   useEffect(() => {
-    // 1. If no user, or neither chat nor submission is active, clear feed.
+    // Only clear feed if we are NOT in the middle of a submission
+    // This prevents the "deletion flash" when currentChatId transitions from null to a new ID
     if (!user || (!currentChatId && !isSubmitting)) {
       setAiFeed([]);
       return;
     }
 
-    // 2. If we don't have a chatId yet (new chat being created), just wait.
-    if (!currentChatId) return;
+    if (!currentChatId) return; // Wait for ID if submitting
 
     const q = query(
       collection(db, 'homeworks'),
@@ -105,12 +105,10 @@ export default function HomeworkCheck({ user }) {
         ...doc.data(),
         time: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
       }));
-      
-      // Sort messages: local (no timestamp) go to bottom
+      // Sort in memory to avoid missing index errors
       messages.sort((a, b) => (a.timestamp?.seconds || Infinity) - (b.timestamp?.seconds || Infinity));
       
-      // Firestore automatically provides optimistic updates via cache.
-      // We ignore empty cache hits on initial load to avoid flashes.
+      // Update feed only if we have messages or if we are not currently loading
       if (messages.length > 0 || !snap.metadata.fromCache) {
         setAiFeed(messages);
       }
@@ -120,7 +118,7 @@ export default function HomeworkCheck({ user }) {
     });
 
     return () => unsubscribe();
-  }, [user, currentChatId]); // removed isSubmitting to prevent listener restarts
+  }, [user, currentChatId]);
 
   // Extract grade helper
   const getGrade = (text) => {
@@ -204,34 +202,17 @@ export default function HomeworkCheck({ user }) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
         const size = Math.min(img.width, img.height);
-        // Scale down for the webhook (to save bandwidth and speed up AI)
-        const MAX_UPLOAD_SIZE = 1200;
-        const scale = size > MAX_UPLOAD_SIZE ? MAX_UPLOAD_SIZE / size : 1;
-        const targetSize = size * scale;
-
-        canvas.width = targetSize;
-        canvas.height = targetSize;
+        canvas.width = size;
+        canvas.height = size;
         const offsetX = (img.width - size) / 2;
         const offsetY = (img.height - size) / 2;
-        
-        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, targetSize, targetSize);
-        
+        ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
         canvas.toBlob((blob) => {
           const processedFile = new File([blob], file.name, { type: 'image/jpeg' });
           setImageFiles([processedFile]);
-          
-          // Generate a much smaller preview for Firestore to avoid "Document too large" errors
-          const previewCanvas = document.createElement('canvas');
-          const previewCtx = previewCanvas.getContext('2d');
-          const PREVIEW_SIZE = 400; 
-          previewCanvas.width = PREVIEW_SIZE;
-          previewCanvas.height = PREVIEW_SIZE;
-          previewCtx.drawImage(canvas, 0, 0, targetSize, targetSize, 0, 0, PREVIEW_SIZE, PREVIEW_SIZE);
-          
-          setImagePreviews([previewCanvas.toDataURL('image/jpeg', 0.6)]);
-        }, 'image/jpeg', 0.85);
+          setImagePreviews([canvas.toDataURL('image/jpeg')]);
+        }, 'image/jpeg', 0.9);
       };
       img.src = event.target.result;
     };
@@ -272,19 +253,12 @@ export default function HomeworkCheck({ user }) {
 
       try {
         const data = JSON.parse(rawText);
-        // n8n often returns an array or an object with fields like 'output', 'response', or 'text'
-        if (Array.isArray(data) && data.length > 0) {
-          const first = data[0];
-          finalAiText = first.output || first.response || first.text || first.message || JSON.stringify(first);
-        } else {
-          finalAiText = data.output || data.response || data.text || data.message || rawText;
-        }
+        finalAiText = data.response || data.text || rawText;
       } catch (e) {
         finalAiText = rawText;
       }
 
-      console.log("Получен ответ ИИ:", finalAiText.substring(0, 100) + "...");
-      if (!finalAiText || finalAiText === "{}") finalAiText = "Проверка завершена. Оценок и замечаний нет.";
+      if (!finalAiText) finalAiText = "Проверка завершена.";
 
       let chatId = currentChatId;
       
@@ -320,12 +294,9 @@ export default function HomeworkCheck({ user }) {
         // it causes useEffect to restart and can cause a flash/clear of the feed.
       }
 
-
       try {
         const currentDateStr = new Date().toLocaleDateString('ru-RU');
-        
-        // Prepare data for Firestore
-        const homeworkData = {
+        await addDoc(collection(db, 'homeworks'), {
           chatId: chatId,
           userId: user.uid,
           dateStr: currentDateStr,
@@ -336,34 +307,10 @@ export default function HomeworkCheck({ user }) {
           aiResponse: finalAiText,
           timestamp: serverTimestamp(),
           preview: imagePreviews[0]
-        };
-
-        // 1. Optimistic Update: Show the message immediately in the UI
-        const optimisticMsg = {
-          ...homeworkData,
-          id: 'temp-' + Date.now(),
-          timestamp: null, // sorting will put it at the bottom
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        
-        setAiFeed(prev => {
-          // If Firestore already synced this message, don't add optimistic one
-          if (prev.some(m => m.aiResponse === finalAiText)) return prev;
-          return [...prev, optimisticMsg];
         });
-
-        // 2. Save to Firestore
-        await addDoc(collection(db, 'homeworks'), homeworkData);
-        
         setStatusMsg('✅ Проверено');
         clearPhotoOnly();
-        
-        // Small delay to let the user see the success state before closing the "thinking" block
-        setTimeout(() => {
-          setIsSubmitting(false);
-          setStatusMsg('');
-        }, 800);
-
+        setIsSubmitting(false); // Remove delay, hide immediately after DB save
       } catch (dbError) {
         console.error("Ошибка сохранения в базу:", dbError);
         setStatusMsg('⚠️ Ответ получен, но не удалось сохранить в базу');
@@ -502,7 +449,6 @@ export default function HomeworkCheck({ user }) {
         <h1 style={{ fontSize: window.innerWidth < 768 ? '1rem' : '1.2rem', fontWeight: 600, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           <ClipboardList size={18} color="var(--accent-cyan)" />
           {currentChatId ? (chats.find(c => c.id === currentChatId)?.classGroup || 'Чат') : 'Новая проверка'}
-          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--accent-cyan)', background: 'rgba(0, 242, 254, 0.1)', padding: '1px 5px', borderRadius: '4px', marginLeft: '6px', border: '1px solid rgba(0, 242, 254, 0.2)', verticalAlign: 'middle' }}>v0.1</span>
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 242, 254, 0.1)', padding: '4px 10px', borderRadius: '100px', border: '1px solid rgba(0, 242, 254, 0.2)', flexShrink: 0 }}>
           <Star size={12} color="var(--accent-cyan)" fill="var(--accent-cyan)" />
