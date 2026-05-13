@@ -272,12 +272,19 @@ export default function HomeworkCheck({ user }) {
 
       try {
         const data = JSON.parse(rawText);
-        finalAiText = data.response || data.text || rawText;
+        // n8n often returns an array or an object with fields like 'output', 'response', or 'text'
+        if (Array.isArray(data) && data.length > 0) {
+          const first = data[0];
+          finalAiText = first.output || first.response || first.text || first.message || JSON.stringify(first);
+        } else {
+          finalAiText = data.output || data.response || data.text || data.message || rawText;
+        }
       } catch (e) {
         finalAiText = rawText;
       }
 
-      if (!finalAiText) finalAiText = "Проверка завершена.";
+      console.log("Получен ответ ИИ:", finalAiText.substring(0, 100) + "...");
+      if (!finalAiText || finalAiText === "{}") finalAiText = "Проверка завершена. Оценок и замечаний нет.";
 
       let chatId = currentChatId;
       
@@ -316,7 +323,9 @@ export default function HomeworkCheck({ user }) {
 
       try {
         const currentDateStr = new Date().toLocaleDateString('ru-RU');
-        await addDoc(collection(db, 'homeworks'), {
+        
+        // Prepare data for Firestore
+        const homeworkData = {
           chatId: chatId,
           userId: user.uid,
           dateStr: currentDateStr,
@@ -327,16 +336,33 @@ export default function HomeworkCheck({ user }) {
           aiResponse: finalAiText,
           timestamp: serverTimestamp(),
           preview: imagePreviews[0]
+        };
+
+        // 1. Optimistic Update: Show the message immediately in the UI
+        const optimisticMsg = {
+          ...homeworkData,
+          id: 'temp-' + Date.now(),
+          timestamp: null, // sorting will put it at the bottom
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        
+        setAiFeed(prev => {
+          // If Firestore already synced this message, don't add optimistic one
+          if (prev.some(m => m.aiResponse === finalAiText)) return prev;
+          return [...prev, optimisticMsg];
         });
+
+        // 2. Save to Firestore
+        await addDoc(collection(db, 'homeworks'), homeworkData);
         
         setStatusMsg('✅ Проверено');
         clearPhotoOnly();
         
-        // Short delay to ensure Firestore listener picks up the new message
-        // and we don't have a "flash" of the Loading state.
+        // Small delay to let the user see the success state before closing the "thinking" block
         setTimeout(() => {
           setIsSubmitting(false);
-        }, 500);
+          setStatusMsg('');
+        }, 800);
 
       } catch (dbError) {
         console.error("Ошибка сохранения в базу:", dbError);
