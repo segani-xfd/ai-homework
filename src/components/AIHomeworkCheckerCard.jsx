@@ -9,23 +9,30 @@ import { InlineMath, BlockMath } from 'react-katex';
  */
 function renderWithMath(text) {
   if (!text) return null;
-  // Split text by math delimiters
-  const parts = text.split(/(\$\$.*?\$\$|\$.*?\$)/g);
+  // Improved regex to handle $...$, $$...$$, \[...\], \(...\) and cross-line formulas
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g);
   return parts.map((part, i) => {
-    if (part.startsWith('$$') && part.endsWith('$$') && part.length > 3) {
+    if (!part) return null;
+    
+    // Block math: $$ ... $$ or \[ ... \]
+    if ((part.startsWith('$$') && part.endsWith('$$')) || (part.startsWith('\\\[') && part.endsWith('\\\]'))) {
+      const math = part.startsWith('$$') ? part.slice(2, -2) : part.slice(2, -2);
       return (
         <BlockMath 
           key={i} 
-          math={part.slice(2, -2)} 
-          renderError={() => <span key={i}>{part}</span>} 
+          math={math} 
+          renderError={(error) => <span key={i} style={{ color: '#f87171' }}>{part}</span>} 
         />
       );
-    } else if (part.startsWith('$') && part.endsWith('$') && part.length > 1) {
+    } 
+    // Inline math: $ ... $ or \( ... \)
+    else if ((part.startsWith('$') && part.endsWith('$')) || (part.startsWith('\\\(') && part.endsWith('\\\)'))) {
+      const math = part.startsWith('$') ? part.slice(1, -1) : part.slice(2, -2);
       return (
         <InlineMath 
           key={i} 
-          math={part.slice(1, -1)} 
-          renderError={() => <span key={i}>{part}</span>} 
+          math={math} 
+          renderError={(error) => <span key={i} style={{ color: '#f87171' }}>{part}</span>} 
         />
       );
     }
@@ -116,7 +123,11 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
         .hw-card-scroll::-webkit-scrollbar { width: 4px; }
         .hw-card-scroll::-webkit-scrollbar-track { background: transparent; }
         .hw-card-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .hw-card-scroll-v { overflow-y: auto; max-height: 200px; }
+        .hw-card-scroll-v { 
+          overflow-y: auto; 
+          height: 350px; /* Fixed height as requested */
+          max-height: 50vh; 
+        }
         @media (max-width: 600px) {
           .hw-card-columns { flex-direction: column !important; }
           .hw-card-column { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06); }
