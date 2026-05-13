@@ -249,16 +249,29 @@ export default function HomeworkCheck({ user }) {
       if (!response.ok) throw new Error('Ошибка сервера: ' + response.status);
 
       const rawText = await response.text();
+      console.log('Raw response from n8n:', rawText);
       let finalAiText = '';
 
       try {
         const data = JSON.parse(rawText);
-        finalAiText = data.response || data.text || rawText;
+        // Handle n8n returning an array
+        const actualData = Array.isArray(data) ? data[0] : data;
+        
+        // Try various common fields for the response
+        finalAiText = actualData.response || 
+                      actualData.text || 
+                      actualData.output || 
+                      actualData.message || 
+                      actualData.data ||
+                      (typeof actualData === 'string' ? actualData : rawText);
       } catch (e) {
+        console.warn('Response is not valid JSON, using raw text');
         finalAiText = rawText;
       }
 
-      if (!finalAiText) finalAiText = "Проверка завершена.";
+      if (!finalAiText || finalAiText === '[object Object]') {
+        finalAiText = rawText || "Проверка завершена.";
+      }
 
       let chatId = currentChatId;
       
@@ -308,9 +321,38 @@ export default function HomeworkCheck({ user }) {
           timestamp: serverTimestamp(),
           preview: imagePreviews[0]
         });
+        // Prepare the new message object for instant UI update
+        const newMessage = {
+          id: 'temp-' + Date.now(),
+          chatId: chatId,
+          userId: user.uid,
+          dateStr: currentDateStr,
+          classGroup: formData.classGroup,
+          subject: formData.subject,
+          student: formData.student,
+          taskNum: formData.taskNum,
+          aiResponse: finalAiText,
+          timestamp: { toDate: () => new Date() },
+          preview: imagePreviews[0],
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        // If it's a new chat, we need to wait for the listener to warm up
+        // Otherwise we can just let the listener do its thing, 
+        // but adding it manually ensures it shows up even with slow sync
+        setAiFeed(prev => {
+          // Avoid duplicates if listener already caught it
+          if (prev.some(m => m.aiResponse === finalAiText && m.student === formData.student)) return prev;
+          return [...prev, newMessage];
+        });
+
         setStatusMsg('✅ Проверено');
         clearPhotoOnly();
-        setIsSubmitting(false); // Remove delay, hide immediately after DB save
+        
+        // Small delay before removing the loader to ensure smooth transition
+        setTimeout(() => {
+          setIsSubmitting(false);
+        }, 500);
       } catch (dbError) {
         console.error("Ошибка сохранения в базу:", dbError);
         setStatusMsg('⚠️ Ответ получен, но не удалось сохранить в базу');

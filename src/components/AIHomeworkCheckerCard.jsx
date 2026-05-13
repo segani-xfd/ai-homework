@@ -75,6 +75,14 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
     if (!rawData) return {};
     const parts = rawData.split(';522ac@#$%@!#');
     const data = {};
+    
+    // If no delimiter found, treat as plain text
+    if (parts.length <= 1 && !rawData.includes(':')) {
+      data.isRaw = true;
+      data.rawContent = rawData;
+      return data;
+    }
+
     parts.forEach(part => {
       const trimmedPart = part.trim();
       if (!trimmedPart) return;
@@ -188,6 +196,13 @@ const AIHomeworkCheckerCard = ({ rawData }) => {
               <span style={{ fontWeight: 800, color: '#c084fc', marginRight: '6px' }}>Итог:</span>
               {renderWithMath(error_summary.replace(errorRegex, '').replace(correctRegex, ''))}
             </div>
+          </div>
+        )}
+
+        {/* Fallback for raw content */}
+        {parsedData.isRaw && (
+          <div style={{ padding: '20px', fontSize: '0.9rem', lineHeight: '1.6', color: '#f1f5f9', whiteSpace: 'pre-wrap' }}>
+            {renderWithMath(parsedData.rawContent)}
           </div>
         )}
       </motion.div>
